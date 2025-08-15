@@ -114,7 +114,15 @@ HOOKAF(int, lstat_hook, const char *pathname, struct stat *statbuf) {
 }
 
 HOOKAF(int, fstat_hook, int fd, struct stat *statbuf) {
-    return origfstat_hook(fd, statbuf); // No path string, can’t filter
+    char filepath[256];
+    char realpath[256];
+    snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
+    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+        memset(statbuf, 0, sizeof(struct stat));
+        errno = ENOENT;
+        return -1;
+    }
+    return origfstat_hook(fd, statbuf);
 }
 
 HOOKAF(int, open_hook, const char *pathname, int flags, mode_t mode) {
@@ -126,7 +134,7 @@ HOOKAF(off_t, lseek_hook, int fd, off_t offset, int whence) {
     char realpath[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
     if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
-        return origlseek_hook(fd, offset, whence);
+        return -1;
     }
     return origlseek_hook(fd, offset, whence);
 }
@@ -136,7 +144,8 @@ HOOKAF(ssize_t, read_hook, int fd, void *buf, size_t count) {
     char realpath[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
     if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
-        return origread_hook(fd, buf, count);
+        errno = EACCES;
+        return -1;
     }
     return origread_hook(fd, buf, count);
 }
@@ -146,7 +155,8 @@ HOOKAF(ssize_t, write_hook, int fd, const void *buf, size_t count) {
     char realpath[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
     if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
-        return origwrite_hook(fd, buf, count);
+        errno = EACCES;
+        return -1;
     }
     return origwrite_hook(fd, buf, count);
 }
@@ -157,7 +167,8 @@ HOOKAF(void*, mmap_hook, void *addr, size_t length, int prot, int flags, int fd,
     if (fd != -1) {
         snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
         if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
-            return origmmap_hook(addr, length, prot, flags, fd, offset);
+            errno = EACCES;
+            return MAP_FAILED;
         }
     }
     return origmmap_hook(addr, length, prot, flags, fd, offset);
@@ -175,10 +186,7 @@ HOOKAF(int, chdir_hook, const char *path) {
 }
 
 HOOKAF(DIR*, opendir_hook, const char *name) {
-    if (strstr(name, "/proc/") != NULL) {
-        return origopendir_hook(HIDE_DIR);
-    }
-    if (contains_sensitive(name)) {
+    if (strstr(name, "/proc/") != NULL || contains_sensitive(name)) {
         return origopendir_hook(HIDE_DIR);
     }
     return origopendir_hook(name);
