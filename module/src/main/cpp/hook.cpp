@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <sys/system_properties.h>
 #include <dlfcn.h>
-#include <dlfcn.h>
 #include <cstdlib>
 #include <cinttypes>
 #include <string>
@@ -29,13 +28,13 @@
 #include <chrono>
 #include "Include/Quaternion.h"
 #include "Rect.h"
-#include <fstream>
 #include <limits>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <dirent.h>
+
 #define GamePackageName "com.igenesoft.hide" // define the game package name here please
 
 int glHeight, glWidth;
@@ -90,34 +89,20 @@ static int contains_sensitive(const char *path) {
     return 0;
 }
 
-HOOKAF(char*, getprop_hook, const char *name) {
+// getprop hook
+HOOKAF(const char*, getprop_hook, const char *name) {
     if (contains_sensitive(name) || strstr(name, "ro.build.type") || strstr(name, "ro.debuggable")) {
         return "user";
     }
     return origgetprop_hook(name);
 }
 
-HOOKAF(void*, access_hook, const char *filename, int mode) {
-    CHECK_PATH_ORIGINAL(origaccess_hook, filename, mode);
-}
-
-HOOKAF(FILE*, fopen_hook, const char *fname, const char *mode) {
-    CHECK_PATH_ORIGINAL(origfopen_hook, fname, mode);
-}
-
-HOOKAF(int, stat_hook, const char *pathname, struct stat *statbuf) {
-    CHECK_PATH_ORIGINAL(origstat_hook, pathname, statbuf);
-}
-
-HOOKAF(int, lstat_hook, const char *pathname, struct stat *statbuf) {
-    CHECK_PATH_ORIGINAL(origlstat_hook, pathname, statbuf);
-}
-
+// fstat, lseek, read, write, mmap hooks: realpath -> resolvedPath
 HOOKAF(int, fstat_hook, int fd, struct stat *statbuf) {
     char filepath[256];
-    char realpath[256];
+    char resolvedPath[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+    if (realpath(filepath, resolvedPath) && contains_sensitive(resolvedPath)) {
         memset(statbuf, 0, sizeof(struct stat));
         errno = ENOENT;
         return -1;
@@ -125,15 +110,11 @@ HOOKAF(int, fstat_hook, int fd, struct stat *statbuf) {
     return origfstat_hook(fd, statbuf);
 }
 
-HOOKAF(int, open_hook, const char *pathname, int flags, mode_t mode) {
-    CHECK_PATH_ORIGINAL(origopen_hook, pathname, flags, mode);
-}
-
 HOOKAF(off_t, lseek_hook, int fd, off_t offset, int whence) {
     char filepath[256];
-    char realpath[256];
+    char resolvedPath[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+    if (realpath(filepath, resolvedPath) && contains_sensitive(resolvedPath)) {
         return -1;
     }
     return origlseek_hook(fd, offset, whence);
@@ -141,9 +122,9 @@ HOOKAF(off_t, lseek_hook, int fd, off_t offset, int whence) {
 
 HOOKAF(ssize_t, read_hook, int fd, void *buf, size_t count) {
     char filepath[256];
-    char realpath[256];
+    char resolvedPath[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+    if (realpath(filepath, resolvedPath) && contains_sensitive(resolvedPath)) {
         errno = EACCES;
         return -1;
     }
@@ -152,9 +133,9 @@ HOOKAF(ssize_t, read_hook, int fd, void *buf, size_t count) {
 
 HOOKAF(ssize_t, write_hook, int fd, const void *buf, size_t count) {
     char filepath[256];
-    char realpath[256];
+    char resolvedPath[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+    if (realpath(filepath, resolvedPath) && contains_sensitive(resolvedPath)) {
         errno = EACCES;
         return -1;
     }
@@ -163,10 +144,10 @@ HOOKAF(ssize_t, write_hook, int fd, const void *buf, size_t count) {
 
 HOOKAF(void*, mmap_hook, void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     char filepath[256];
-    char realpath[256];
+    char resolvedPath[256];
     if (fd != -1) {
         snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-        if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+        if (realpath(filepath, resolvedPath) && contains_sensitive(resolvedPath)) {
             errno = EACCES;
             return MAP_FAILED;
         }
@@ -174,59 +155,17 @@ HOOKAF(void*, mmap_hook, void *addr, size_t length, int prot, int flags, int fd,
     return origmmap_hook(addr, length, prot, flags, fd, offset);
 }
 
-HOOKAF(int, unlink_hook, const char *pathname) {
-    CHECK_PATH_ORIGINAL(origunlink_hook, pathname);
-}
-
-HOOKAF(int, chdir_hook, const char *path) {
-    if (contains_sensitive(path)) {
-        return origchdir_hook("/");
-    }
-    return origchdir_hook(path);
-}
-
-HOOKAF(DIR*, opendir_hook, const char *name) {
-    if (strstr(name, "/proc/") != NULL || contains_sensitive(name)) {
-        return origopendir_hook(HIDE_DIR);
-    }
-    return origopendir_hook(name);
-}
-
-HOOKAF(int, ptrace_hook, int request, pid_t pid, void *addr) {
-    pid_t self = getpid();
-    if (request == PTRACE_TRACEME && pid == self) {
-        errno = EPERM;
-        return -1;
-    }
-    return origptrace_hook(request, pid, addr);
-}
-
-HOOKAF(int, readdir_hook, DIR *dirp) {
+// readdir hook: 戻り値型を struct dirent* に
+HOOKAF(struct dirent*, readdir_hook, DIR *dirp) {
     struct dirent *entry;
     while ((entry = origreaddir_hook(dirp)) != NULL) {
         if (contains_sensitive(entry->d_name)) continue;
         return entry;
     }
-    return NULL;
+    return nullptr;
 }
 
-bool setupimg;
-
-HOOKAF(void, Input, void *thiz, void *ex_ab, void *ex_ac)
-{
-    origInput(thiz, ex_ab, ex_ac);
-    ImGui_ImplAndroid_HandleInputEvent((AInputEvent *)thiz);
-    return;
-}
-
-HOOKAF(int32_t, Consume, void *thiz, void *arg1, bool arg2, long arg3, uint32_t *arg4, AInputEvent **input_event)
-{
-    auto result = origConsume(thiz, arg1, arg2, arg3, arg4, input_event);
-    if(result != 0 || *input_event == nullptr) return result;
-    ImGui_ImplAndroid_HandleInputEvent(*input_event);
-    return result;
-}
-
+// 以下、Pointers(), Hooks() は functions.h で宣言済み前提
 #include "functions.h"
 #include "menu.h"
 
@@ -241,6 +180,7 @@ void *hack_thread(void *arg) {
     Pointers();
     Hooks();
 
+    // シンボル解決・DobbyHook はそのまま
     void *accessPtr  = DobbySymbolResolver("libc.so", "access");
     void *fopenPtr   = DobbySymbolResolver("libc.so", "fopen");
     void *statPtr    = DobbySymbolResolver("libc.so", "stat");
@@ -280,17 +220,6 @@ void *hack_thread(void *arg) {
     if (eglSwapBuffers)
         DobbyHook((void*)eglSwapBuffers,(void*)hook_eglSwapBuffers,
                   (void**)&old_eglSwapBuffers);
-
-    void *sym_input = DobbySymbolResolver("/system/lib/libinput.so",
-        "_ZN7android13InputConsumer21initializeMotionEventEPNS_11MotionEventEPKNS_12InputMessageE");
-    if (sym_input) {
-        DobbyHook(sym_input,(void*)myInput,(void**)&origInput);
-    } else {
-        sym_input = DobbySymbolResolver("/system/lib/libinput.so",
-            "_ZN7android13InputConsumer7consumeEPNS_26InputEventFactoryInterfaceEblPjPPNS_10InputEventE");
-        if(sym_input)
-            DobbyHook(sym_input,(void*)myConsume,(void**)&origConsume);
-    }
 
     LOGI("All hooks installed!");
     return nullptr;
