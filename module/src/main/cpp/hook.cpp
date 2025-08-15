@@ -31,7 +31,12 @@
 #include "Rect.h"
 #include <fstream>
 #include <limits>
-#define GamePackageName "com.kakaogames.gdts" // define the game package name here please
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/ptrace.h>
+#include <dirent.h>
+#define GamePackageName "com.igenesoft.hide" // define the game package name here please
 
 int glHeight, glWidth;
 
@@ -60,6 +65,32 @@ int isGame(JNIEnv *env, jstring appDataDir)
         return 0;
     }
 }
+
+const char *sensitiveStrings[] = {
+    "/su", "superuser", "magisk", "topjohnwu",
+    "luckypatcher", "chelpus", "Kinguser",
+    "supersu", "busybox", "kernelsu", "daemonsu",
+    "/proc/self/attr/prev", "bstfolder", "libmaa.so",
+    "/root", "/etc/passwd", "/etc/shadow", "/etc/sudoers", "/etc/hostname",
+    "/etc/network/", "/etc/hosts", "/etc/systemd/", "/etc/rc.local",
+    "/boot/", "/proc/kcore", "/proc/cpuinfo", "/proc/meminfo",
+    "/proc/self/", "/proc/sys/", "/proc/sys/kernel/", "/sys/kernel/security/",
+    "/dev/", "/data/data/com.android", "/system/app/", "/system/xbin/",
+    "/system/bin/", "/sbin/", "/.ssh/", "/var/log/", "/tmp/", "/var/tmp/",
+    "/lib/modules/", "/lib64/", "/usr/local/bin/", "/usr/bin/", "/bin/",
+    "/var/crash/", "/var/log/lastlog", "/sys/class/mem", "/sys/class/power_supply",
+    "/sys/devices/system/cpu/", "/sys/kernel/debug/", "/proc/partitions",
+    "libxposed.so", "anti_cheat", "game_guardian", "libinput.so"
+};
+
+static int contains_sensitive(const char *path) {
+    for (int i = 0; i < sizeof(sensitiveStrings)/sizeof(*sensitiveStrings); i++) {
+        if (strstr(path, sensitiveStrings[i])) return 1;
+    }
+    return 0;
+}
+
+
 
 bool setupimg;
 
