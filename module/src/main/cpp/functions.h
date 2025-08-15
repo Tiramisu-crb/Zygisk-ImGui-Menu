@@ -1,6 +1,6 @@
 #ifndef ZYCHEATS_SGUYS_FUNCTIONS_H
 #define ZYCHEATS_SGUYS_FUNCTIONS_H
-
+/*
 // here you can define variables for the patches
 bool addCurrency, freeItems, everythingUnlocked, showAllItems, addSkins;
 
@@ -54,3 +54,4 @@ void Hooks() {
 }
 
 #endif //ZYCHEATS_SGUYS_FUNCTIONS_H
+*/
