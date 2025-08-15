@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <sys/system_properties.h>
 #include <dlfcn.h>
-#include <dlfcn.h>
 #include <cstdlib>
 #include <cinttypes>
 #include <string>
@@ -29,21 +28,40 @@
 #include <chrono>
 #include "Include/Quaternion.h"
 #include "Rect.h"
-#include <fstream>
 #include <limits>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <dirent.h>
+
 #define GamePackageName "com.igenesoft.hide" // define the game package name here please
 
 int glHeight, glWidth;
 
+int (*origaccess_hook)(const char*, int) = nullptr;
+FILE* (*origfopen_hook)(const char*, const char*) = nullptr;
+int (*origstat_hook)(const char*, struct stat*) = nullptr;
+int (*origlstat_hook)(const char*, struct stat*) = nullptr;
+int (*origfstat_hook)(int, struct stat*) = nullptr;
+int (*origopen_hook)(const char*, int, mode_t) = nullptr;
+off_t (*origlseek_hook)(int, off_t, int) = nullptr;
+ssize_t (*origread_hook)(int, void*, size_t) = nullptr;
+ssize_t (*origwrite_hook)(int, const void*, size_t) = nullptr;
+void* (*origmmap_hook)(void*, size_t, int, int, int, off_t) = nullptr;
+int (*origunlink_hook)(const char*) = nullptr;
+int (*origchdir_hook)(const char*) = nullptr;
+DIR* (*origopendir_hook)(const char*) = nullptr;
+struct dirent* (*origreaddir_hook)(DIR*) = nullptr;
+int (*origptrace_hook)(int, pid_t, void*) = nullptr;
+char* (*origgetprop_hook)(const char*) = nullptr;
+
+char *game_data_dir = nullptr;
+
 int isGame(JNIEnv *env, jstring appDataDir)
 {
-    if (!appDataDir)
-        return 0;
+    if (!appDataDir) return 0;
+
     const char *app_data_dir = env->GetStringUTFChars(appDataDir, nullptr);
     int user = 0;
     static char package_name[256];
@@ -51,19 +69,21 @@ int isGame(JNIEnv *env, jstring appDataDir)
         if (sscanf(app_data_dir, "/data/%*[^/]/%s", package_name) != 1) {
             package_name[0] = '\0';
             LOGW(OBFUSCATE("can't parse %s"), app_data_dir);
+            env->ReleaseStringUTFChars(appDataDir, app_data_dir);
             return 0;
         }
     }
+
     if (strcmp(package_name, GamePackageName) == 0) {
         LOGI(OBFUSCATE("detect game: %s"), package_name);
         game_data_dir = new char[strlen(app_data_dir) + 1];
         strcpy(game_data_dir, app_data_dir);
         env->ReleaseStringUTFChars(appDataDir, app_data_dir);
         return 1;
-    } else {
-        env->ReleaseStringUTFChars(appDataDir, app_data_dir);
-        return 0;
     }
+
+    env->ReleaseStringUTFChars(appDataDir, app_data_dir);
+    return 0;
 }
 
 const char *sensitiveStrings[] = {
@@ -92,7 +112,7 @@ static int contains_sensitive(const char *path) {
 
 HOOKAF(char*, getprop_hook, const char *name) {
     if (contains_sensitive(name) || strstr(name, "ro.build.type") || strstr(name, "ro.debuggable")) {
-        return "user";
+        return const_cast<char*>("user");
     }
     return origgetprop_hook(name);
 }
@@ -115,9 +135,9 @@ HOOKAF(int, lstat_hook, const char *pathname, struct stat *statbuf) {
 
 HOOKAF(int, fstat_hook, int fd, struct stat *statbuf) {
     char filepath[256];
-    char realpath[256];
+    char realPathBuf[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+    if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
         memset(statbuf, 0, sizeof(struct stat));
         errno = ENOENT;
         return -1;
@@ -131,9 +151,9 @@ HOOKAF(int, open_hook, const char *pathname, int flags, mode_t mode) {
 
 HOOKAF(off_t, lseek_hook, int fd, off_t offset, int whence) {
     char filepath[256];
-    char realpath[256];
+    char realPathBuf[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+    if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
         return -1;
     }
     return origlseek_hook(fd, offset, whence);
@@ -141,9 +161,9 @@ HOOKAF(off_t, lseek_hook, int fd, off_t offset, int whence) {
 
 HOOKAF(ssize_t, read_hook, int fd, void *buf, size_t count) {
     char filepath[256];
-    char realpath[256];
+    char realPathBuf[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+    if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
         errno = EACCES;
         return -1;
     }
@@ -152,9 +172,9 @@ HOOKAF(ssize_t, read_hook, int fd, void *buf, size_t count) {
 
 HOOKAF(ssize_t, write_hook, int fd, const void *buf, size_t count) {
     char filepath[256];
-    char realpath[256];
+    char realPathBuf[256];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-    if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+    if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
         errno = EACCES;
         return -1;
     }
@@ -163,10 +183,10 @@ HOOKAF(ssize_t, write_hook, int fd, const void *buf, size_t count) {
 
 HOOKAF(void*, mmap_hook, void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     char filepath[256];
-    char realpath[256];
+    char realPathBuf[256];
     if (fd != -1) {
         snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
-        if (realpath(filepath, realpath) && contains_sensitive(realpath)) {
+        if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
             errno = EACCES;
             return MAP_FAILED;
         }
@@ -186,7 +206,7 @@ HOOKAF(int, chdir_hook, const char *path) {
 }
 
 HOOKAF(DIR*, opendir_hook, const char *name) {
-    if (strstr(name, "/proc/") != NULL || contains_sensitive(name)) {
+    if (strstr(name, "/proc/") != nullptr || contains_sensitive(name)) {
         return origopendir_hook(HIDE_DIR);
     }
     return origopendir_hook(name);
@@ -201,13 +221,13 @@ HOOKAF(int, ptrace_hook, int request, pid_t pid, void *addr) {
     return origptrace_hook(request, pid, addr);
 }
 
-HOOKAF(int, readdir_hook, DIR *dirp) {
+HOOKAF(struct dirent*, readdir_hook, DIR *dirp) {
     struct dirent *entry;
-    while ((entry = origreaddir_hook(dirp)) != NULL) {
+    while ((entry = origreaddir_hook(dirp)) != nullptr) {
         if (contains_sensitive(entry->d_name)) continue;
         return entry;
     }
-    return NULL;
+    return nullptr;
 }
 
 bool setupimg;
@@ -216,7 +236,6 @@ HOOKAF(void, Input, void *thiz, void *ex_ab, void *ex_ac)
 {
     origInput(thiz, ex_ab, ex_ac);
     ImGui_ImplAndroid_HandleInputEvent((AInputEvent *)thiz);
-    return;
 }
 
 HOOKAF(int32_t, Consume, void *thiz, void *arg1, bool arg2, long arg3, uint32_t *arg4, AInputEvent **input_event)
