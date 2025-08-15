@@ -52,6 +52,5 @@ void Hooks() {
     HOOK("0xE7BC74", Backend, old_Backend);
     HOOK("0x29DA08C", ProductDefinition, old_ProductDefinition);
 }
-
-#endif //ZYCHEATS_SGUYS_FUNCTIONS_H
 */
+#endif //ZYCHEATS_SGUYS_FUNCTIONS_H
