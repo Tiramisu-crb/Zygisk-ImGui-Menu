@@ -285,12 +285,12 @@ void *hack_thread(void *arg) {
     void *sym_input = DobbySymbolResolver("/system/lib/libinput.so",
         "_ZN7android13InputConsumer21initializeMotionEventEPNS_11MotionEventEPKNS_12InputMessageE");
     if (sym_input) {
-        DobbyHook(sym_input,(void*)Input,(void**)&origInput);
+        DobbyHook(sym_input,(void*)myInput,(void**)&origInput);
     } else {
         sym_input = DobbySymbolResolver("/system/lib/libinput.so",
             "_ZN7android13InputConsumer7consumeEPNS_26InputEventFactoryInterfaceEblPjPPNS_10InputEventE");
         if(sym_input)
-            DobbyHook(sym_input,(void*)Consume,(void**)&origConsume);
+            DobbyHook(sym_input,(void*)myConsume,(void**)&origConsume);
     }
 
     LOGI("All hooks installed!");
