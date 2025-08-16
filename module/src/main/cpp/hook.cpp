@@ -68,21 +68,12 @@ int isGame(JNIEnv *env, jstring appDataDir)
     return 0;
 }
 
-const char *sensitiveStrings[] = {
-    "/su", "superuser", "magisk", "topjohnwu",
-    "luckypatcher", "chelpus", "Kinguser",
-    "supersu", "busybox", "kernelsu", "daemonsu",
-    "/proc/self/attr/prev", "bstfolder", "libmaa.so",
-    "/root", "/etc/passwd", "/etc/shadow", "/etc/sudoers", "/etc/hostname",
-    "/etc/network/", "/etc/hosts", "/etc/systemd/", "/etc/rc.local",
-    "/boot/", "/proc/kcore", "/proc/cpuinfo", "/proc/meminfo",
-    "/proc/self/", "/proc/sys/", "/proc/sys/kernel/", "/sys/kernel/security/",
-    "/dev/", "/data/data/com.android", "/system/app/", "/system/xbin/",
-    "/system/bin/", "/sbin/", "/.ssh/", "/var/log/", "/tmp/", "/var/tmp/",
-    "/lib/modules/", "/lib64/", "/usr/local/bin/", "/usr/bin/", "/bin/",
-    "/var/crash/", "/var/log/lastlog", "/sys/class/mem", "/sys/class/power_supply",
-    "/sys/devices/system/cpu/", "/sys/kernel/debug/", "/proc/partitions",
-    "libxposed.so", "anti_cheat", "game_guardian", "libinput.so"
+const char * sensitiveStrings[] = {
+        "/su", "superuser", "magisk", "topjohnwu",
+        "luckypatcher", "chelpus", "Kinguser",
+        "supersu", "busybox", "kernelsu", "daemonsu",
+        "/proc/self/attr/prev", "bstfolder", "libmaa.so",
+        "libdobby.so"
 };
 
 static int contains_sensitive(const char *path) {
@@ -91,14 +82,14 @@ static int contains_sensitive(const char *path) {
     }
     return 0;
 }
-
+/*
 HOOKAF(char*, getprop_hook, const char *name) {
     if (contains_sensitive(name) || strstr(name, "ro.build.type") || strstr(name, "ro.debuggable")) {
         return const_cast<char*>("user");
     }
     return origgetprop_hook(name);
 }
-
+*/
 HOOKAF(int, access_hook, const char *filename, int mode) {
     CHECK_PATH_ORIGINAL(origaccess_hook, filename, mode);
 }
@@ -106,7 +97,7 @@ HOOKAF(int, access_hook, const char *filename, int mode) {
 HOOKAF(FILE*, fopen_hook, const char *fname, const char *mode) {
     CHECK_PATH_ORIGINAL(origfopen_hook, fname, mode);
 }
-
+/*
 HOOKAF(int, stat_hook, const char *pathname, struct stat *statbuf) {
     CHECK_PATH_ORIGINAL(origstat_hook, pathname, statbuf);
 }
@@ -193,7 +184,7 @@ HOOKAF(DIR*, opendir_hook, const char *name) {
     }
     return origopendir_hook(name);
 }
-
+*/
 HOOKAF(int, ptrace_hook, int request, pid_t pid, void *addr) {
     pid_t self = getpid();
     if (request == PTRACE_TRACEME && pid == self) {
@@ -202,7 +193,7 @@ HOOKAF(int, ptrace_hook, int request, pid_t pid, void *addr) {
     }
     return origptrace_hook(request, pid, addr);
 }
-
+/*
 HOOKAF(struct dirent*, readdir_hook, DIR *dirp) {
     struct dirent *entry;
     while ((entry = origreaddir_hook(dirp)) != nullptr) {
@@ -211,7 +202,7 @@ HOOKAF(struct dirent*, readdir_hook, DIR *dirp) {
     }
     return nullptr;
 }
-
+*/
 bool setupimg;
 
 HOOKAF(void, Input, void *thiz, void *ex_ab, void *ex_ac)
@@ -244,37 +235,37 @@ void *hack_thread(void *arg) {
 
     void *accessPtr  = DobbySymbolResolver("libc.so", "access");
     void *fopenPtr   = DobbySymbolResolver("libc.so", "fopen");
-    void *statPtr    = DobbySymbolResolver("libc.so", "stat");
-    void *lstatPtr   = DobbySymbolResolver("libc.so", "lstat");
-    void *fstatPtr   = DobbySymbolResolver("libc.so", "fstat");
-    void *openPtr    = DobbySymbolResolver("libc.so", "open");
-    void *lseekPtr   = DobbySymbolResolver("libc.so", "lseek");
-    void *readPtr    = DobbySymbolResolver("libc.so", "read");
-    void *writePtr   = DobbySymbolResolver("libc.so", "write");
-    void *mmapPtr    = DobbySymbolResolver("libc.so", "mmap");
-    void *unlinkPtr  = DobbySymbolResolver("libc.so", "unlink");
-    void *chdirPtr   = DobbySymbolResolver("libc.so", "chdir");
-    void *opendirPtr = DobbySymbolResolver("libc.so", "opendir");
-    void *readdirPtr = DobbySymbolResolver("libc.so", "readdir");
+//    void *statPtr    = DobbySymbolResolver("libc.so", "stat");
+//    void *lstatPtr   = DobbySymbolResolver("libc.so", "lstat");
+//    void *fstatPtr   = DobbySymbolResolver("libc.so", "fstat");
+//    void *openPtr    = DobbySymbolResolver("libc.so", "open");
+//    void *lseekPtr   = DobbySymbolResolver("libc.so", "lseek");
+//    void *readPtr    = DobbySymbolResolver("libc.so", "read");
+//    void *writePtr   = DobbySymbolResolver("libc.so", "write");
+//    void *mmapPtr    = DobbySymbolResolver("libc.so", "mmap");
+//    void *unlinkPtr  = DobbySymbolResolver("libc.so", "unlink");
+//    void *chdirPtr   = DobbySymbolResolver("libc.so", "chdir");
+//    void *opendirPtr = DobbySymbolResolver("libc.so", "opendir");
+//    void *readdirPtr = DobbySymbolResolver("libc.so", "readdir");
     void *ptracePtr  = DobbySymbolResolver("libc.so", "ptrace");
-    void *getpropPtr = DobbySymbolResolver("libc.so", "getprop");
+//   void *getpropPtr = DobbySymbolResolver("libc.so", "getprop");
 
     if (accessPtr)  DobbyHook(accessPtr,  (void*)myaccess_hook,  (void**)&origaccess_hook);
     if (fopenPtr)   DobbyHook(fopenPtr,   (void*)myfopen_hook,   (void**)&origfopen_hook);
-    if (statPtr)    DobbyHook(statPtr,    (void*)mystat_hook,    (void**)&origstat_hook);
-    if (lstatPtr)   DobbyHook(lstatPtr,   (void*)mylstat_hook,   (void**)&origlstat_hook);
-    if (fstatPtr)   DobbyHook(fstatPtr,   (void*)myfstat_hook,   (void**)&origfstat_hook);
-    if (openPtr)    DobbyHook(openPtr,    (void*)myopen_hook,    (void**)&origopen_hook);
-    if (lseekPtr)   DobbyHook(lseekPtr,   (void*)mylseek_hook,   (void**)&origlseek_hook);
-    if (readPtr)    DobbyHook(readPtr,    (void*)myread_hook,    (void**)&origread_hook);
-    if (writePtr)   DobbyHook(writePtr,   (void*)mywrite_hook,   (void**)&origwrite_hook);
-    if (mmapPtr)    DobbyHook(mmapPtr,    (void*)mymmap_hook,    (void**)&origmmap_hook);
-    if (unlinkPtr)  DobbyHook(unlinkPtr,  (void*)myunlink_hook,  (void**)&origunlink_hook);
-    if (chdirPtr)   DobbyHook(chdirPtr,   (void*)mychdir_hook,   (void**)&origchdir_hook);
-    if (opendirPtr) DobbyHook(opendirPtr, (void*)myopendir_hook, (void**)&origopendir_hook);
-    if (readdirPtr) DobbyHook(readdirPtr, (void*)myreaddir_hook, (void**)&origreaddir_hook);
+//    if (statPtr)    DobbyHook(statPtr,    (void*)mystat_hook,    (void**)&origstat_hook);
+//    if (lstatPtr)   DobbyHook(lstatPtr,   (void*)mylstat_hook,   (void**)&origlstat_hook);
+//    if (fstatPtr)   DobbyHook(fstatPtr,   (void*)myfstat_hook,   (void**)&origfstat_hook);
+//    if (openPtr)    DobbyHook(openPtr,    (void*)myopen_hook,    (void**)&origopen_hook);
+//    if (lseekPtr)   DobbyHook(lseekPtr,   (void*)mylseek_hook,   (void**)&origlseek_hook);
+//    if (readPtr)    DobbyHook(readPtr,    (void*)myread_hook,    (void**)&origread_hook);
+//    if (writePtr)   DobbyHook(writePtr,   (void*)mywrite_hook,   (void**)&origwrite_hook);
+//    if (mmapPtr)    DobbyHook(mmapPtr,    (void*)mymmap_hook,    (void**)&origmmap_hook);
+//    if (unlinkPtr)  DobbyHook(unlinkPtr,  (void*)myunlink_hook,  (void**)&origunlink_hook);
+//    if (chdirPtr)   DobbyHook(chdirPtr,   (void*)mychdir_hook,   (void**)&origchdir_hook);
+//    if (opendirPtr) DobbyHook(opendirPtr, (void*)myopendir_hook, (void**)&origopendir_hook);
+//    if (readdirPtr) DobbyHook(readdirPtr, (void*)myreaddir_hook, (void**)&origreaddir_hook);
     if (ptracePtr)  DobbyHook(ptracePtr,  (void*)myptrace_hook,  (void**)&origptrace_hook);
-    if (getpropPtr) DobbyHook(getpropPtr, (void*)mygetprop_hook, (void**)&origgetprop_hook);
+//    if (getpropPtr) DobbyHook(getpropPtr, (void*)mygetprop_hook, (void**)&origgetprop_hook);
 
     auto eglhandle = dlopen("libunity.so", RTLD_LAZY);
     auto eglSwapBuffers = dlsym(eglhandle, "eglSwapBuffers");
