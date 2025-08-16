@@ -53,7 +53,7 @@ void* ProductDefinition(void *instance, monoString* id, monoString* storeSpecifi
 }
 
 void Hooks() {
-//    HOOK("0xE7BC74", Backend, old_Backend);
+    HOOK("0xE7BC74", Backend, old_Backend);
 }
 
 #endif //ZYCHEATS_SGUYS_FUNCTIONS_H
