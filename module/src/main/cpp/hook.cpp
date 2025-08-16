@@ -67,6 +67,22 @@ int isGame(JNIEnv *env, jstring appDataDir)
     return 0;
 }
 
+bool setupimg;
+
+HOOKAF(void, Input, void *thiz, void *ex_ab, void *ex_ac)
+{
+    origInput(thiz, ex_ab, ex_ac);
+    ImGui_ImplAndroid_HandleInputEvent((AInputEvent *)thiz);
+}
+
+HOOKAF(int32_t, Consume, void *thiz, void *arg1, bool arg2, long arg3, uint32_t *arg4, AInputEvent **input_event)
+{
+    auto result = origConsume(thiz, arg1, arg2, arg3, arg4, input_event);
+    if(result != 0 || *input_event == nullptr) return result;
+    ImGui_ImplAndroid_HandleInputEvent(*input_event);
+    return result;
+}
+
 const char * sensitiveStrings[] = {
         "/su", "superuser", "magisk", "topjohnwu",
         "luckypatcher", "chelpus", "Kinguser",
@@ -96,22 +112,6 @@ HOOKAF(int, ptrace_hook, int request, pid_t pid, void *addr) {
         return -1;
     }
     return origptrace_hook(request, pid, addr);
-}
-
-bool setupimg;
-
-HOOKAF(void, Input, void *thiz, void *ex_ab, void *ex_ac)
-{
-    origInput(thiz, ex_ab, ex_ac);
-    ImGui_ImplAndroid_HandleInputEvent((AInputEvent *)thiz);
-}
-
-HOOKAF(int32_t, Consume, void *thiz, void *arg1, bool arg2, long arg3, uint32_t *arg4, AInputEvent **input_event)
-{
-    auto result = origConsume(thiz, arg1, arg2, arg3, arg4, input_event);
-    if(result != 0 || *input_event == nullptr) return result;
-    ImGui_ImplAndroid_HandleInputEvent(*input_event);
-    return result;
 }
 
 #include "functions.h"
