@@ -34,29 +34,11 @@
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <dirent.h>
+#include <limits.h>
 
 #define GamePackageName "com.igenesoft.hide" // define the game package name here please
 
 int glHeight, glWidth;
-
-int (*origaccess_hook)(const char*, int) = nullptr;
-FILE* (*origfopen_hook)(const char*, const char*) = nullptr;
-int (*origstat_hook)(const char*, struct stat*) = nullptr;
-int (*origlstat_hook)(const char*, struct stat*) = nullptr;
-int (*origfstat_hook)(int, struct stat*) = nullptr;
-int (*origopen_hook)(const char*, int, mode_t) = nullptr;
-off_t (*origlseek_hook)(int, off_t, int) = nullptr;
-ssize_t (*origread_hook)(int, void*, size_t) = nullptr;
-ssize_t (*origwrite_hook)(int, const void*, size_t) = nullptr;
-void* (*origmmap_hook)(void*, size_t, int, int, int, off_t) = nullptr;
-int (*origunlink_hook)(const char*) = nullptr;
-int (*origchdir_hook)(const char*) = nullptr;
-DIR* (*origopendir_hook)(const char*) = nullptr;
-struct dirent* (*origreaddir_hook)(DIR*) = nullptr;
-int (*origptrace_hook)(int, pid_t, void*) = nullptr;
-char* (*origgetprop_hook)(const char*) = nullptr;
-
-char *game_data_dir = nullptr;
 
 int isGame(JNIEnv *env, jstring appDataDir)
 {
@@ -117,7 +99,7 @@ HOOKAF(char*, getprop_hook, const char *name) {
     return origgetprop_hook(name);
 }
 
-HOOKAF(void*, access_hook, const char *filename, int mode) {
+HOOKAF(int, access_hook, const char *filename, int mode) {
     CHECK_PATH_ORIGINAL(origaccess_hook, filename, mode);
 }
 
@@ -135,7 +117,7 @@ HOOKAF(int, lstat_hook, const char *pathname, struct stat *statbuf) {
 
 HOOKAF(int, fstat_hook, int fd, struct stat *statbuf) {
     char filepath[256];
-    char realPathBuf[256];
+    char realPathBuf[PATH_MAX];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
     if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
         memset(statbuf, 0, sizeof(struct stat));
@@ -151,7 +133,7 @@ HOOKAF(int, open_hook, const char *pathname, int flags, mode_t mode) {
 
 HOOKAF(off_t, lseek_hook, int fd, off_t offset, int whence) {
     char filepath[256];
-    char realPathBuf[256];
+    char realPathBuf[PATH_MAX];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
     if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
         return -1;
@@ -161,7 +143,7 @@ HOOKAF(off_t, lseek_hook, int fd, off_t offset, int whence) {
 
 HOOKAF(ssize_t, read_hook, int fd, void *buf, size_t count) {
     char filepath[256];
-    char realPathBuf[256];
+    char realPathBuf[PATH_MAX];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
     if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
         errno = EACCES;
@@ -172,7 +154,7 @@ HOOKAF(ssize_t, read_hook, int fd, void *buf, size_t count) {
 
 HOOKAF(ssize_t, write_hook, int fd, const void *buf, size_t count) {
     char filepath[256];
-    char realPathBuf[256];
+    char realPathBuf[PATH_MAX];
     snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
     if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
         errno = EACCES;
@@ -183,7 +165,7 @@ HOOKAF(ssize_t, write_hook, int fd, const void *buf, size_t count) {
 
 HOOKAF(void*, mmap_hook, void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     char filepath[256];
-    char realPathBuf[256];
+    char realPathBuf[PATH_MAX];
     if (fd != -1) {
         snprintf(filepath, sizeof(filepath), "/proc/self/fd/%d", fd);
         if (realpath(filepath, realPathBuf) && contains_sensitive(realPathBuf)) {
@@ -303,12 +285,12 @@ void *hack_thread(void *arg) {
     void *sym_input = DobbySymbolResolver("/system/lib/libinput.so",
         "_ZN7android13InputConsumer21initializeMotionEventEPNS_11MotionEventEPKNS_12InputMessageE");
     if (sym_input) {
-        DobbyHook(sym_input,(void*)myInput,(void**)&origInput);
+        DobbyHook(sym_input,(void*)Input,(void**)&origInput);
     } else {
         sym_input = DobbySymbolResolver("/system/lib/libinput.so",
             "_ZN7android13InputConsumer7consumeEPNS_26InputEventFactoryInterfaceEblPjPPNS_10InputEventE");
         if(sym_input)
-            DobbyHook(sym_input,(void*)myConsume,(void**)&origConsume);
+            DobbyHook(sym_input,(void*)Consume,(void**)&origConsume);
     }
 
     LOGI("All hooks installed!");
