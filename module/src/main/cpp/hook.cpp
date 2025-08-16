@@ -88,7 +88,7 @@ const char * sensitiveStrings[] = {
         "luckypatcher", "chelpus", "Kinguser",
         "supersu", "busybox", "kernelsu", "daemonsu",
         "/proc/self/attr/prev", "bstfolder", "libmaa.so",
-        "arm64-v8a.so", "armeabi-v7a.so", "x86_64.so", "x86.so"
+//        "arm64-v8a.so", "armeabi-v7a.so", "x86_64.so", "x86.so"
 };
 
 static int contains_sensitive(const char *path) {
