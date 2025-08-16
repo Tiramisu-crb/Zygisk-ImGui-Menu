@@ -2,19 +2,14 @@
 #define ZYCHEATS_SGUYS_FUNCTIONS_H
 
 // here you can define variables for the patches
-bool addCurrency, freeItems, everythingUnlocked, showAllItems, addSkins;
+bool destroyAll, destroyAllAuto;
 
-/*
-monoString *CreateIl2cppString(const char *str) {
-    monoString *(*String_CreateString)(void *instance, const char *str) = (monoString*(*)(void*, const char*)) (g_il2cppBaseMap.startAddress + string2Offset(OBFUSCATE("0x2596B20")));
-    return String_CreateString(NULL, str);
-}
-*/
-
-//void (*PurchaseRealMoney) (void* instance, monoString* itemId, monoString* receipt, void* callback);
+void (*DestroyPlayerObjects)(void *player, bool localOnly);
+monoArray<void**> *(*get_PlayerListOthers)();
 
 void Pointers() {
-//    PurchaseRealMoney = (void(*)(void*, monoString*, monoString*, void*)) (g_il2cppBaseMap.startAddress + string2Offset(OBFUSCATE("0xE7AADC")));
+    DestroyPlayerObjects = (void (*)(void *, bool)) (g_il2cppBaseMap.startAddress + string2Offset(OBFUSCATE("0x446DAA4")));
+    get_PlayerListOthers = (monoArray<void **> *(*)()) (g_il2cppBaseMap.startAddress + string2Offset(OBFUSCATE("0x446631C")));
 }
 
 void Patches() {
