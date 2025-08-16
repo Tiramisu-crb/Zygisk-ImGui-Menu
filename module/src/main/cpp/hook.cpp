@@ -34,7 +34,6 @@
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <dirent.h>
-#include <limits.h>
 
 #define GamePackageName "com.igenesoft.hide" // define the game package name here please
 
@@ -90,6 +89,15 @@ HOOKAF(FILE*, fopen_hook, const char *fname, const char *mode) {
     CHECK_PATH_ORIGINAL(origfopen_hook, fname, mode);
 }
 
+HOOKAF(int, ptrace_hook, int request, pid_t pid, void *addr) {
+    pid_t self = getpid();
+    if (request == PTRACE_TRACEME && pid == self) {
+        errno = EPERM;
+        return -1;
+    }
+    return origptrace_hook(request, pid, addr);
+}
+
 bool setupimg;
 
 HOOKAF(void, Input, void *thiz, void *ex_ab, void *ex_ac)
@@ -122,9 +130,11 @@ void *hack_thread(void *arg) {
 
     void *accessPtr  = DobbySymbolResolver("libc.so", "access");
     void *fopenPtr   = DobbySymbolResolver("libc.so", "fopen");
+    void *ptracePtr  = DobbySymbolResolver("libc.so", "ptrace");
 
     if (accessPtr)  DobbyHook(accessPtr,  (void*)myaccess_hook,  (void**)&origaccess_hook);
     if (fopenPtr)   DobbyHook(fopenPtr,   (void*)myfopen_hook,   (void**)&origfopen_hook);
+    if (ptracePtr)  DobbyHook(ptracePtr,   (void*)myptrace_hook,   (void**)&origptrace_hook);
 
     auto eglhandle = dlopen("libunity.so", RTLD_LAZY);
     auto eglSwapBuffers = dlsym(eglhandle, "eglSwapBuffers");
