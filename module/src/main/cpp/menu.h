@@ -14,21 +14,11 @@ void DrawMenu()
         Begin(OBFUSCATE("ZyCheats"));
         ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_FittingPolicyResizeDown;
         if (BeginTabBar("Menu", tab_bar_flags)) {
-            if (BeginTabItem(OBFUSCATE("Account"))) {
-                // here menu stuff, remove test btw
-                // ImGui::Checkbox(OBFUSCATE("This is a checkbox"), &test);
-                if (Button(OBFUSCATE("Add Currency"))) {
-                    // code for button action
-                    addCurrency = true;
+            if (BeginTabItem(OBFUSCATE("Game"))) {
+                if (Button(OBFUSCATE("Destroy All"))) {
+                    destroyAll = true;
                 }
-                TextUnformatted(OBFUSCATE("Adds 1000 gems"));
-                if (Button(OBFUSCATE("Add Skins"))) {
-                    // code for button action
-                    addSkins = true;
-                }
-                Checkbox(OBFUSCATE("Everything unlocked"), &everythingUnlocked);
-                Checkbox(OBFUSCATE("Free Items"), &freeItems);
-                Checkbox(OBFUSCATE("Show Items"), &showAllItems);
+                Checkbox(OBFUSCATE("Loop Destroy All"), &destroyAllAuto);
                 EndTabItem();
             }
             EndTabBar();
