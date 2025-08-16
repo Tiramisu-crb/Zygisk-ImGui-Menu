@@ -259,22 +259,22 @@ void *hack_thread(void *arg) {
     void *ptracePtr  = DobbySymbolResolver("libc.so", "ptrace");
     void *getpropPtr = DobbySymbolResolver("libc.so", "getprop");
 
-if (accessPtr)  DobbyHook(accessPtr,  (void*)myaccess_hook,  (void**)&origaccess_hook);
-if (fopenPtr)   DobbyHook(fopenPtr,   (void*)myfopen_hook,   (void**)&origfopen_hook);
-if (statPtr)    DobbyHook(statPtr,    (void*)mystat_hook,    (void**)&origstat_hook);
-if (lstatPtr)   DobbyHook(lstatPtr,   (void*)mylstat_hook,   (void**)&origlstat_hook);
-if (fstatPtr)   DobbyHook(fstatPtr,   (void*)myfstat_hook,   (void**)&origfstat_hook);
-if (openPtr)    DobbyHook(openPtr,    (void*)myopen_hook,    (void**)&origopen_hook);
-if (lseekPtr)   DobbyHook(lseekPtr,   (void*)mylseek_hook,   (void**)&origlseek_hook);
-if (readPtr)    DobbyHook(readPtr,    (void*)myread_hook,    (void**)&origread_hook);
-if (writePtr)   DobbyHook(writePtr,   (void*)mywrite_hook,   (void**)&origwrite_hook);
-if (mmapPtr)    DobbyHook(mmapPtr,    (void*)mymmap_hook,    (void**)&origmmap_hook);
-if (unlinkPtr)  DobbyHook(unlinkPtr,  (void*)myunlink_hook,  (void**)&origunlink_hook);
-if (chdirPtr)   DobbyHook(chdirPtr,   (void*)mychdir_hook,   (void**)&origchdir_hook);
-if (opendirPtr) DobbyHook(opendirPtr, (void*)myopendir_hook, (void**)&origopendir_hook);
-if (readdirPtr) DobbyHook(readdirPtr, (void*)myreaddir_hook, (void**)&origreaddir_hook);
-if (ptracePtr)  DobbyHook(ptracePtr,  (void*)myptrace_hook,  (void**)&origptrace_hook);
-if (getpropPtr) DobbyHook(getpropPtr, (void*)mygetprop_hook, (void**)&origgetprop_hook);
+    if (accessPtr)  DobbyHook(accessPtr,  (void*)myaccess_hook,  (void**)&origaccess_hook);
+    if (fopenPtr)   DobbyHook(fopenPtr,   (void*)myfopen_hook,   (void**)&origfopen_hook);
+    if (statPtr)    DobbyHook(statPtr,    (void*)mystat_hook,    (void**)&origstat_hook);
+    if (lstatPtr)   DobbyHook(lstatPtr,   (void*)mylstat_hook,   (void**)&origlstat_hook);
+    if (fstatPtr)   DobbyHook(fstatPtr,   (void*)myfstat_hook,   (void**)&origfstat_hook);
+    if (openPtr)    DobbyHook(openPtr,    (void*)myopen_hook,    (void**)&origopen_hook);
+    if (lseekPtr)   DobbyHook(lseekPtr,   (void*)mylseek_hook,   (void**)&origlseek_hook);
+    if (readPtr)    DobbyHook(readPtr,    (void*)myread_hook,    (void**)&origread_hook);
+    if (writePtr)   DobbyHook(writePtr,   (void*)mywrite_hook,   (void**)&origwrite_hook);
+    if (mmapPtr)    DobbyHook(mmapPtr,    (void*)mymmap_hook,    (void**)&origmmap_hook);
+    if (unlinkPtr)  DobbyHook(unlinkPtr,  (void*)myunlink_hook,  (void**)&origunlink_hook);
+    if (chdirPtr)   DobbyHook(chdirPtr,   (void*)mychdir_hook,   (void**)&origchdir_hook);
+    if (opendirPtr) DobbyHook(opendirPtr, (void*)myopendir_hook, (void**)&origopendir_hook);
+    if (readdirPtr) DobbyHook(readdirPtr, (void*)myreaddir_hook, (void**)&origreaddir_hook);
+    if (ptracePtr)  DobbyHook(ptracePtr,  (void*)myptrace_hook,  (void**)&origptrace_hook);
+    if (getpropPtr) DobbyHook(getpropPtr, (void*)mygetprop_hook, (void**)&origgetprop_hook);
 
     auto eglhandle = dlopen("libunity.so", RTLD_LAZY);
     auto eglSwapBuffers = dlsym(eglhandle, "eglSwapBuffers");
