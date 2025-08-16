@@ -21,24 +21,30 @@ void Patches() {
 //    PATCH_SWITCH("0x10A69A0", "200080D2C0035FD6", showAllItems);
 }
 
-// declare your hooks here
-/*
 void (*old_Backend)(void *instance);
 void Backend(void *instance) {
     if (instance != NULL) {
-        if (addCurrency) {
-            LOGW("Calling Purchase");
-            PurchaseRealMoney(instance, CreateIl2cppString("special_offer1"), CreateIl2cppString("dev"), NULL);
-            addCurrency = false;
+        
+        if (destroyAll) {
+            auto photonplayers = get_PlayerListOthers();
+            for (int i = 0; i < photonplayers->getLength(); ++i) {
+                auto photonplayer = photonplayers->getPointer()[i];
+                DestroyPlayerObjects(photonplayer, false);
+            }
+            destroyAll = false;
         }
-        if (addSkins) {
-            LOGW("Calling Skins");
-            addSkins = false;
+        if (destroyAllAuto) {
+            auto photonplayers = get_PlayerListOthers();
+            for (int i = 0; i < photonplayers->getLength(); ++i) {
+                auto photonplayer = photonplayers->getPointer()[i];
+                DestroyPlayerObjects(photonplayer, false);
+            }
         }
+        
     }
     return old_Backend(instance);
 }
-*/
+
 
 void* (*old_ProductDefinition)(void *instance, monoString* id, monoString* storeSpecificId, int type, bool enabled, void* payouts);
 void* ProductDefinition(void *instance, monoString* id, monoString* storeSpecificId, int type, bool enabled, void* payouts) {
